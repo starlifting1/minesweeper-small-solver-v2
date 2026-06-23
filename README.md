@@ -53,16 +53,6 @@ npm run build
 | AI step | Let AI make one move | AI 执行一步 |
 | AI takeover | Let AI play continuously | AI 自动接管 |
 
-## Difficulty Levels
-
-| Level | Size | Mines |
-|---|---:|---:|
-| Beginner / 入门 | 9 x 9 | 8 |
-| Intermediate / 普通 | 12 x 12 | 16 |
-| Hard / 困难 | 12 x 12 | 30 |
-| Expert / 专家 | 20 x 20 | 80 |
-| Extreme / 极限 | 30 x 30 | 200 |
-
 ## Project Structure
 
 ```text
@@ -124,16 +114,16 @@ npm run check
 
 `npm run check` only performs JavaScript syntax checks with Node.js. It does not run browser UI tests.
 
-## Notes / 说明
+## Notes
 
 - The UI text is bilingual Chinese / English.
 - The AI is meant for casual play and demonstration, not competitive solver benchmarking.
 - Because Minesweeper can require guessing, AI takeover can still lose.
 - The first click is safe because the game places mines after the first reveal and excludes the first cell's neighborhood.
 
-## License / 协议
+## License
 
-MIT License. See [LICENSE.md](LICENSE.md).
+See [LICENSE.md](LICENSE.md).
 
 ## Development Notes
 
