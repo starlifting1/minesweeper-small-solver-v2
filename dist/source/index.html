@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>扫雷 / Minesweeper</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/minesweeper.js" defer></script>
+  <script src="js/solver.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+
+<body>
+  <main class="game">
+    <h1>扫雷 / Minesweeper</h1>
+
+    <div class="toolbar">
+      <label for="difficulty">难度 / Level</label>
+      <select id="difficulty">
+        <option value="beginner">入门 / Beginner：9 × 9，8 mines</option>
+        <option value="intermediate">普通 / Intermediate：12 × 12，16 mines</option>
+        <option value="hard">困难 / Hard：12 × 12，30 mines</option>
+        <option value="expert">专家 / Expert：20 × 20，80 mines</option>
+        <option value="extreme">极限 / Extreme：30 × 30，200 mines</option>
+      </select>
+
+      <button id="restart" type="button">重新开始 / Restart</button>
+      <button id="flag-mode" type="button" aria-pressed="false">插旗 / Flag</button>
+      <button id="ai-hint" type="button">AI提示 / Hint</button>
+      <button id="ai-step" type="button">AI走一步 / Step</button>
+      <button id="ai-auto" type="button" aria-pressed="false">AI接管 / Auto</button>
+
+      <div class="stats" aria-label="游戏状态 / Game status">
+        <span class="counter">剩余雷 / Mines：<output id="mines-left">8</output></span>
+        <span class="counter">时间 / Time：<output id="time">0</output> 秒 / sec</span>
+      </div>
+    </div>
+
+    <p id="status" role="status">点击任意格开始。/ Click any cell to start.</p>
+
+    <div class="board-wrap">
+      <div id="board" role="grid" aria-label="扫雷棋盘 / Minesweeper board"></div>
+    </div>
+
+    <p class="help">左键翻开，右键插旗；触屏设备可先开启“插旗”。/ Left click to reveal, right click to flag; on touch devices, enable Flag first.</p>
+  </main>
+</body>
+</html>

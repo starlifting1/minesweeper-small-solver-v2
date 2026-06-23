@@ -1,0 +1,18 @@
+{
+  "name": "minesweeper-small-solver",
+  "version": "2.0.0",
+  "description": "A lightweight browser Minesweeper game with a fair constraint-based AI assistant.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node --check js/minesweeper.js && node --check js/solver.js && node --check js/app.js && node --check scripts/build.mjs"
+  },
+  "keywords": [
+    "minesweeper",
+    "game",
+    "solver",
+    "constraint-satisfaction",
+    "javascript"
+  ]
+}

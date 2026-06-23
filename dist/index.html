@@ -1,0 +1,1155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>扫雷 / Minesweeper</title>
+  <style>
+:root {
+  color-scheme: light;
+  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+  background: #eef2f6;
+  color: #18212b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.game {
+  width: min(100%, 760px);
+}
+
+h1 {
+  margin: 0 0 16px;
+  font-size: 28px;
+  letter-spacing: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+label,
+.counter {
+  font-weight: 650;
+}
+
+select,
+button {
+  min-height: 40px;
+  border: 1px solid #aab5c0;
+  border-radius: 6px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+
+select {
+  padding: 0 10px;
+}
+
+button {
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: #536579;
+}
+
+#flag-mode[aria-pressed="true"],
+#ai-auto[aria-pressed="true"] {
+  background: #18212b;
+  border-color: #18212b;
+  color: #fff;
+}
+
+.stats {
+  display: flex;
+  gap: 18px;
+  margin-left: auto;
+}
+
+#status {
+  min-height: 24px;
+  margin: 8px 0;
+  font-weight: 650;
+}
+
+.board-wrap {
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid #c3ccd5;
+  border-radius: 8px;
+  background: #d9e0e6;
+  box-shadow: 0 12px 30px rgb(24 33 43 / 10%);
+}
+
+#board {
+  --columns: 9;
+  --cell-size: 36px;
+  display: grid;
+  grid-template-columns: repeat(var(--columns), var(--cell-size));
+  gap: 2px;
+  width: max-content;
+  margin: auto;
+}
+
+.cell {
+  width: var(--cell-size);
+  height: var(--cell-size);
+  padding: 0;
+  border: 1px solid #8d9aa6;
+  border-radius: 4px;
+  background: #f8fafb;
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.cell:hover:not(.revealed) {
+  background: #e8eef3;
+}
+
+.cell.revealed {
+  border-color: #c8d0d7;
+  background: #dfe5ea;
+  cursor: default;
+}
+
+.cell.mine {
+  background: #e45a5a;
+}
+
+.cell.ai-safe {
+  border-color: #2e7d32;
+  background: #dff3e3;
+  box-shadow: inset 0 0 0 2px #2e7d32;
+}
+
+.cell.ai-flag {
+  border-color: #c62828;
+  background: #f7dddd;
+  box-shadow: inset 0 0 0 2px #c62828;
+}
+
+.cell.ai-best {
+  border-color: #1769aa;
+  background: #deedf9;
+  box-shadow: inset 0 0 0 2px #1769aa;
+}
+
+.n1 { color: #1769aa; }
+.n2 { color: #2e7d32; }
+.n3 { color: #c62828; }
+.n4 { color: #5e35b1; }
+.n5 { color: #8e3b25; }
+.n6 { color: #00796b; }
+.n7 { color: #263238; }
+.n8 { color: #616161; }
+
+.help {
+  margin: 12px 0 0;
+  color: #53606d;
+  font-size: 14px;
+}
+
+@media (max-width: 560px) {
+  body {
+    place-items: start center;
+    padding: 16px 10px;
+  }
+
+  .stats {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  #board {
+    --cell-size: 32px;
+  }
+}
+</style>
+  
+  
+  
+</head>
+
+<body>
+  <main class="game">
+    <h1>扫雷 / Minesweeper</h1>
+
+    <div class="toolbar">
+      <label for="difficulty">难度 / Level</label>
+      <select id="difficulty">
+        <option value="beginner">入门 / Beginner：9 × 9，8 mines</option>
+        <option value="intermediate">普通 / Intermediate：12 × 12，16 mines</option>
+        <option value="hard">困难 / Hard：12 × 12，30 mines</option>
+        <option value="expert">专家 / Expert：20 × 20，80 mines</option>
+        <option value="extreme">极限 / Extreme：30 × 30，200 mines</option>
+      </select>
+
+      <button id="restart" type="button">重新开始 / Restart</button>
+      <button id="flag-mode" type="button" aria-pressed="false">插旗 / Flag</button>
+      <button id="ai-hint" type="button">AI提示 / Hint</button>
+      <button id="ai-step" type="button">AI走一步 / Step</button>
+      <button id="ai-auto" type="button" aria-pressed="false">AI接管 / Auto</button>
+
+      <div class="stats" aria-label="游戏状态 / Game status">
+        <span class="counter">剩余雷 / Mines：<output id="mines-left">8</output></span>
+        <span class="counter">时间 / Time：<output id="time">0</output> 秒 / sec</span>
+      </div>
+    </div>
+
+    <p id="status" role="status">点击任意格开始。/ Click any cell to start.</p>
+
+    <div class="board-wrap">
+      <div id="board" role="grid" aria-label="扫雷棋盘 / Minesweeper board"></div>
+    </div>
+
+    <p class="help">左键翻开，右键插旗；触屏设备可先开启“插旗”。/ Left click to reveal, right click to flag; on touch devices, enable Flag first.</p>
+  </main>
+<script>
+(function () {
+  "use strict";
+
+  const LEVELS = Object.freeze({
+    beginner: Object.freeze({ rows: 9, cols: 9, mines: 8 }),
+    intermediate: Object.freeze({ rows: 12, cols: 12, mines: 16 }),
+    hard: Object.freeze({ rows: 12, cols: 12, mines: 30 }),
+    expert: Object.freeze({ rows: 20, cols: 20, mines: 80 }),
+    extreme: Object.freeze({ rows: 30, cols: 30, mines: 200 })
+  });
+
+  class Minesweeper {
+    constructor(levelName = "beginner") {
+      this.reset(levelName);
+    }
+
+    reset(levelName) {
+      const level = LEVELS[levelName];
+      if (!level) throw new Error(`Unknown level: ${levelName}`);
+
+      this.levelName = levelName;
+      this.rows = level.rows;
+      this.cols = level.cols;
+      this.mineCount = level.mines;
+      this.flagCount = 0;
+      this.revealedCount = 0;
+      this.state = "ready";
+      this.board = Array.from({ length: this.rows }, (_, row) =>
+        Array.from({ length: this.cols }, (_, col) => ({
+          row,
+          col,
+          isMine: false,
+          isRevealed: false,
+          isFlagged: false,
+          nearbyMines: 0
+        }))
+      );
+    }
+
+    getCell(row, col) {
+      return this.board[row]?.[col] ?? null;
+    }
+
+    getNeighbors(cell) {
+      const neighbors = [];
+
+      for (let rowOffset = -1; rowOffset <= 1; rowOffset++) {
+        for (let colOffset = -1; colOffset <= 1; colOffset++) {
+          if (rowOffset === 0 && colOffset === 0) continue;
+
+          const neighbor = this.getCell(
+            cell.row + rowOffset,
+            cell.col + colOffset
+          );
+          if (neighbor) neighbors.push(neighbor);
+        }
+      }
+
+      return neighbors;
+    }
+
+    placeMines(safeCell) {
+      const candidates = this.board.flat().filter((cell) => {
+        const rowDistance = Math.abs(cell.row - safeCell.row);
+        const colDistance = Math.abs(cell.col - safeCell.col);
+        return rowDistance > 1 || colDistance > 1;
+      });
+
+      this.shuffle(candidates);
+      candidates.slice(0, this.mineCount).forEach((cell) => {
+        cell.isMine = true;
+      });
+
+      this.board.flat().forEach((cell) => {
+        cell.nearbyMines = this.getNeighbors(cell)
+          .filter((neighbor) => neighbor.isMine).length;
+      });
+    }
+
+    shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    reveal(row, col) {
+      if (this.state === "won" || this.state === "lost") return;
+
+      const cell = this.getCell(row, col);
+      if (!cell || cell.isFlagged) return;
+
+      if (this.state === "ready") {
+        this.placeMines(cell);
+        this.state = "playing";
+      }
+
+      if (cell.isRevealed) {
+        this.revealAroundNumber(cell);
+      } else {
+        this.revealArea(cell);
+      }
+
+      this.checkForWin();
+    }
+
+    revealArea(startCell) {
+      const pending = [startCell];
+
+      while (pending.length > 0 && this.state === "playing") {
+        const cell = pending.pop();
+        if (cell.isRevealed || cell.isFlagged) continue;
+
+        cell.isRevealed = true;
+        this.revealedCount++;
+
+        if (cell.isMine) {
+          this.state = "lost";
+          this.revealAllMines();
+          return;
+        }
+
+        if (cell.nearbyMines === 0) {
+          this.getNeighbors(cell).forEach((neighbor) => {
+            if (!neighbor.isRevealed && !neighbor.isMine) {
+              pending.push(neighbor);
+            }
+          });
+        }
+      }
+    }
+
+    revealAroundNumber(cell) {
+      if (cell.nearbyMines === 0) return;
+
+      const neighbors = this.getNeighbors(cell);
+      const nearbyFlags = neighbors.filter((neighbor) => neighbor.isFlagged).length;
+      if (nearbyFlags !== cell.nearbyMines) return;
+
+      neighbors
+        .filter((neighbor) => !neighbor.isFlagged && !neighbor.isRevealed)
+        .forEach((neighbor) => this.revealArea(neighbor));
+    }
+
+    toggleFlag(row, col) {
+      if (this.state === "won" || this.state === "lost") return;
+
+      const cell = this.getCell(row, col);
+      if (!cell || cell.isRevealed) return;
+      if (!cell.isFlagged && this.flagCount >= this.mineCount) return;
+
+      cell.isFlagged = !cell.isFlagged;
+      this.flagCount += cell.isFlagged ? 1 : -1;
+    }
+
+    checkForWin() {
+      const safeCellCount = this.rows * this.cols - this.mineCount;
+      if (this.state !== "lost" && this.revealedCount === safeCellCount) {
+        this.state = "won";
+        this.board.flat().filter((cell) => cell.isMine).forEach((cell) => {
+          cell.isFlagged = true;
+        });
+        this.flagCount = this.mineCount;
+      }
+    }
+
+    revealAllMines() {
+      this.board.flat().filter((cell) => cell.isMine).forEach((cell) => {
+        cell.isRevealed = true;
+      });
+    }
+
+    get minesLeft() {
+      return this.mineCount - this.flagCount;
+    }
+  }
+
+  window.MinesweeperGame = Object.freeze({ LEVELS, Minesweeper });
+})();
+</script>
+<script>
+(function () {
+  "use strict";
+
+  const DEFAULT_LIMITS = Object.freeze({
+    maxComponentVariables: 26,
+    maxSearchNodes: 600000,
+    maxSolutions: 120000
+  });
+
+  function keyOf(cell) {
+    return `${cell.row},${cell.col}`;
+  }
+
+  function positionOf(key) {
+    const [row, col] = key.split(",").map(Number);
+    return { row, col };
+  }
+
+  function combination(n, k) {
+    if (k < 0 || k > n) return 0;
+    const r = Math.min(k, n - k);
+    let result = 1;
+    for (let i = 1; i <= r; i++) {
+      result *= (n - r + i) / i;
+    }
+    return result;
+  }
+
+  function makeMove(type, key, probability = type === "flag" ? 1 : 0) {
+    return { type, ...positionOf(key), mineProbability: probability };
+  }
+
+  function dedupeMoves(moves) {
+    const seen = new Set();
+    return moves.filter((move) => {
+      const id = `${move.type}:${move.row},${move.col}`;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }
+
+  function normalizeConstraints(constraints) {
+    const bySignature = new Map();
+
+    constraints.forEach((constraint) => {
+      const cells = [...new Set(constraint.cells)].sort();
+      const signature = cells.join("|");
+      const existing = bySignature.get(signature);
+      if (!existing || constraint.count < existing.count) {
+        bySignature.set(signature, { cells, count: constraint.count });
+      }
+    });
+
+    return [...bySignature.values()]
+      .filter((constraint) => constraint.cells.length > 0)
+      .filter((constraint) => constraint.count >= 0 && constraint.count <= constraint.cells.length);
+  }
+
+  function collectConstraints(game) {
+    const constraints = [];
+    const unknownKeys = new Set();
+
+    game.board.flat().forEach((cell) => {
+      if (!cell.isRevealed || cell.isMine || cell.nearbyMines === 0) return;
+
+      const neighbors = game.getNeighbors(cell);
+      const flags = neighbors.filter((neighbor) => neighbor.isFlagged).length;
+      const unknowns = neighbors
+        .filter((neighbor) => !neighbor.isRevealed && !neighbor.isFlagged)
+        .map(keyOf);
+
+      unknowns.forEach((key) => unknownKeys.add(key));
+      if (unknowns.length > 0) {
+        constraints.push({
+          cells: unknowns,
+          count: cell.nearbyMines - flags
+        });
+      }
+    });
+
+    return {
+      constraints: normalizeConstraints(constraints),
+      unknownKeys
+    };
+  }
+
+  function inferCertainMoves(constraints) {
+    let working = normalizeConstraints(constraints);
+    const safe = new Set();
+    const flags = new Set();
+    let changed = true;
+
+    while (changed) {
+      changed = false;
+
+      working.forEach((constraint) => {
+        const cells = constraint.cells.filter((key) => !safe.has(key) && !flags.has(key));
+        const count = constraint.count - constraint.cells.filter((key) => flags.has(key)).length;
+
+        if (cells.length === 0) return;
+        if (count === 0) {
+          cells.forEach((key) => {
+            if (!safe.has(key)) {
+              safe.add(key);
+              changed = true;
+            }
+          });
+        } else if (count === cells.length) {
+          cells.forEach((key) => {
+            if (!flags.has(key)) {
+              flags.add(key);
+              changed = true;
+            }
+          });
+        }
+      });
+
+      working = normalizeConstraints(
+        working.map((constraint) => {
+          const cells = constraint.cells.filter((key) => !safe.has(key) && !flags.has(key));
+          const count = constraint.count - constraint.cells.filter((key) => flags.has(key)).length;
+          return { cells, count };
+        })
+      );
+
+      for (let i = 0; i < working.length; i++) {
+        const left = working[i];
+        const leftSet = new Set(left.cells);
+        for (let j = 0; j < working.length; j++) {
+          if (i === j) continue;
+          const right = working[j];
+          if (left.cells.length >= right.cells.length) continue;
+          if (!left.cells.every((key) => right.cells.includes(key))) continue;
+
+          const diff = right.cells.filter((key) => !leftSet.has(key));
+          const count = right.count - left.count;
+          if (diff.length === 0) continue;
+
+          if (count === 0) {
+            diff.forEach((key) => {
+              if (!safe.has(key)) {
+                safe.add(key);
+                changed = true;
+              }
+            });
+          } else if (count === diff.length) {
+            diff.forEach((key) => {
+              if (!flags.has(key)) {
+                flags.add(key);
+                changed = true;
+              }
+            });
+          }
+        }
+      }
+    }
+
+    return {
+      safeMoves: [...safe].map((key) => makeMove("reveal", key, 0)),
+      flagMoves: [...flags].map((key) => makeMove("flag", key, 1))
+    };
+  }
+
+  function buildComponents(frontierKeys, constraints) {
+    const parent = new Map();
+    const find = (key) => {
+      if (parent.get(key) !== key) parent.set(key, find(parent.get(key)));
+      return parent.get(key);
+    };
+    const union = (a, b) => {
+      const rootA = find(a);
+      const rootB = find(b);
+      if (rootA !== rootB) parent.set(rootB, rootA);
+    };
+
+    frontierKeys.forEach((key) => parent.set(key, key));
+    constraints.forEach((constraint) => {
+      constraint.cells.slice(1).forEach((key) => union(constraint.cells[0], key));
+    });
+
+    const grouped = new Map();
+    frontierKeys.forEach((key) => {
+      const root = find(key);
+      if (!grouped.has(root)) grouped.set(root, []);
+      grouped.get(root).push(key);
+    });
+
+    return [...grouped.values()].map((keys) => {
+      const keySet = new Set(keys);
+      return {
+        keys,
+        constraints: constraints.filter((constraint) =>
+          constraint.cells.some((key) => keySet.has(key))
+        )
+      };
+    });
+  }
+
+  function enumerateComponent(component, limits) {
+    if (component.keys.length > limits.maxComponentVariables) {
+      return { skipped: true, reason: "component-too-large" };
+    }
+
+    const degree = new Map(component.keys.map((key) => [key, 0]));
+    component.constraints.forEach((constraint) => {
+      constraint.cells.forEach((key) => degree.set(key, (degree.get(key) ?? 0) + 1));
+    });
+
+    const orderedKeys = [...component.keys].sort((a, b) => degree.get(b) - degree.get(a));
+    const indexOf = new Map(orderedKeys.map((key, index) => [key, index]));
+    const constraints = component.constraints.map((constraint) => ({
+      cells: constraint.cells.map((key) => indexOf.get(key)),
+      count: constraint.count
+    }));
+
+    const assigned = Array(orderedKeys.length).fill(-1);
+    const byMineCount = new Map();
+    const cellMineCountsByMineCount = new Map(orderedKeys.map((key) => [key, new Map()]));
+    let nodes = 0;
+    let solutionCount = 0;
+    let stopped = false;
+
+    function constraintsStillPossible() {
+      return constraints.every((constraint) => {
+        let mines = 0;
+        let unknown = 0;
+        constraint.cells.forEach((index) => {
+          if (assigned[index] === 1) mines++;
+          else if (assigned[index] === -1) unknown++;
+        });
+        return mines <= constraint.count && mines + unknown >= constraint.count;
+      });
+    }
+
+    function recordSolution() {
+      const mines = assigned.reduce((sum, value) => sum + value, 0);
+      byMineCount.set(mines, (byMineCount.get(mines) ?? 0) + 1);
+      orderedKeys.forEach((key, index) => {
+        if (assigned[index] !== 1) return;
+        const counts = cellMineCountsByMineCount.get(key);
+        counts.set(mines, (counts.get(mines) ?? 0) + 1);
+      });
+      solutionCount++;
+      if (solutionCount >= limits.maxSolutions) stopped = true;
+    }
+
+    function backtrack(index) {
+      if (stopped) return;
+      nodes++;
+      if (nodes > limits.maxSearchNodes) {
+        stopped = true;
+        return;
+      }
+      if (!constraintsStillPossible()) return;
+      if (index === orderedKeys.length) {
+        recordSolution();
+        return;
+      }
+
+      assigned[index] = 0;
+      backtrack(index + 1);
+      assigned[index] = 1;
+      backtrack(index + 1);
+      assigned[index] = -1;
+    }
+
+    backtrack(0);
+
+    if (stopped) {
+      return { skipped: true, reason: "search-limit" };
+    }
+
+    return {
+      skipped: false,
+      keys: orderedKeys,
+      byMineCount,
+      cellMineCountsByMineCount,
+      solutionCount
+    };
+  }
+
+  function estimateLocalProbabilities(constraints, unknownKeys, fallbackProbability) {
+    const totals = new Map();
+    const counts = new Map();
+
+    constraints.forEach((constraint) => {
+      const estimate = constraint.count / constraint.cells.length;
+      constraint.cells.forEach((key) => {
+        totals.set(key, (totals.get(key) ?? 0) + estimate);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      });
+    });
+
+    return [...unknownKeys].map((key) => ({
+      ...positionOf(key),
+      mineProbability: counts.has(key) ? totals.get(key) / counts.get(key) : fallbackProbability,
+      source: "estimate"
+    }));
+  }
+
+  function calculateProbabilities(game, constraints, frontierKeys) {
+    const allUnknown = game.board.flat()
+      .filter((cell) => !cell.isRevealed && !cell.isFlagged)
+      .map(keyOf);
+    const allUnknownSet = new Set(allUnknown);
+    const frontierSet = new Set(frontierKeys);
+    const offFrontierKeys = allUnknown.filter((key) => !frontierSet.has(key));
+    const fallbackProbability = allUnknown.length > 0 ? game.minesLeft / allUnknown.length : 0;
+
+    if (frontierKeys.length === 0) {
+      return allUnknown.map((key) => ({
+        ...positionOf(key),
+        mineProbability: fallbackProbability,
+        source: "global"
+      }));
+    }
+
+    const components = buildComponents(frontierKeys, constraints);
+    const enumerated = components.map((component) =>
+      enumerateComponent(component, DEFAULT_LIMITS)
+    );
+
+    if (enumerated.some((component) => component.skipped || component.solutionCount === 0)) {
+      return estimateLocalProbabilities(constraints, allUnknownSet, fallbackProbability);
+    }
+
+    const totalWeightByComponent = new Map();
+    const mineWeightByKey = new Map();
+    let totalWeight = 0;
+    let offFrontierMineWeight = 0;
+
+    function walk(componentIndex, mineSum, weight, selectedCounts) {
+      if (componentIndex === enumerated.length) {
+        const offMines = game.minesLeft - mineSum;
+        const offWays = combination(offFrontierKeys.length, offMines);
+        if (offWays === 0) return;
+
+        const finalWeight = weight * offWays;
+        totalWeight += finalWeight;
+        offFrontierMineWeight += finalWeight * offMines;
+
+        selectedCounts.forEach((mineCount, index) => {
+          const component = enumerated[index];
+          const componentWeight = finalWeight;
+          totalWeightByComponent.set(index, (totalWeightByComponent.get(index) ?? 0) + componentWeight);
+          component.keys.forEach((key) => {
+            const count = component.cellMineCountsByMineCount.get(key).get(mineCount) ?? 0;
+            const solutions = component.byMineCount.get(mineCount);
+            mineWeightByKey.set(
+              key,
+              (mineWeightByKey.get(key) ?? 0) + componentWeight * (count / solutions)
+            );
+          });
+        });
+        return;
+      }
+
+      const component = enumerated[componentIndex];
+      component.byMineCount.forEach((solutions, mines) => {
+        selectedCounts.push(mines);
+        walk(componentIndex + 1, mineSum + mines, weight * solutions, selectedCounts);
+        selectedCounts.pop();
+      });
+    }
+
+    walk(0, 0, 1, []);
+
+    if (totalWeight === 0) {
+      return estimateLocalProbabilities(constraints, allUnknownSet, fallbackProbability);
+    }
+
+    const probabilities = [];
+    frontierKeys.forEach((key) => {
+      probabilities.push({
+        ...positionOf(key),
+        mineProbability: (mineWeightByKey.get(key) ?? 0) / totalWeight,
+        source: "exact"
+      });
+    });
+
+    const offProbability = offFrontierKeys.length > 0
+      ? offFrontierMineWeight / totalWeight / offFrontierKeys.length
+      : 1;
+    offFrontierKeys.forEach((key) => {
+      probabilities.push({
+        ...positionOf(key),
+        mineProbability: offProbability,
+        source: "global"
+      });
+    });
+
+    return probabilities;
+  }
+
+  function scoreMove(game, probability) {
+    const cell = game.getCell(probability.row, probability.col);
+    const nearbyRevealedNumbers = game.getNeighbors(cell)
+      .filter((neighbor) => neighbor.isRevealed && neighbor.nearbyMines > 0).length;
+    return probability.mineProbability - nearbyRevealedNumbers * 0.0001;
+  }
+
+  function solve(game) {
+    if (game.state === "won" || game.state === "lost") {
+      return {
+        safeMoves: [],
+        flagMoves: [],
+        probabilities: [],
+        bestMove: null,
+        explanation: "游戏已经结束。/ Game over."
+      };
+    }
+
+    if (game.state === "ready") {
+      const row = Math.floor(game.rows / 2);
+      const col = Math.floor(game.cols / 2);
+      return {
+        safeMoves: [{ type: "reveal", row, col, mineProbability: 0 }],
+        flagMoves: [],
+        probabilities: [],
+        bestMove: { type: "reveal", row, col, mineProbability: 0 },
+        explanation: "第一步安全，AI 选择棋盘中心附近开局。/ First move is safe; AI opens near the center."
+      };
+    }
+
+    const { constraints, unknownKeys } = collectConstraints(game);
+    const certain = inferCertainMoves(constraints);
+    const safeMoves = dedupeMoves(certain.safeMoves);
+    const flagMoves = dedupeMoves(certain.flagMoves);
+
+    if (safeMoves.length > 0 || flagMoves.length > 0) {
+      return {
+        safeMoves,
+        flagMoves,
+        probabilities: [],
+        bestMove: safeMoves[0] ?? flagMoves[0],
+        explanation: `发现 ${safeMoves.length} 个确定安全格，${flagMoves.length} 个确定雷。/ Found ${safeMoves.length} certainly safe cells and ${flagMoves.length} certain mines.`,
+        stats: { constraints: constraints.length, frontier: unknownKeys.size }
+      };
+    }
+
+    const probabilities = calculateProbabilities(game, constraints, [...unknownKeys])
+      .filter((entry) => {
+        const cell = game.getCell(entry.row, entry.col);
+        return cell && !cell.isRevealed && !cell.isFlagged;
+      })
+      .sort((a, b) => scoreMove(game, a) - scoreMove(game, b));
+
+    const best = probabilities[0] ?? null;
+    return {
+      safeMoves: [],
+      flagMoves: [],
+      probabilities,
+      bestMove: best ? { type: "reveal", ...best } : null,
+      explanation: best
+        ? `没有确定步，选择估计雷率最低的格子：${Math.round(best.mineProbability * 1000) / 10}%。/ No certain move; choosing the lowest estimated mine risk.`
+        : "没有可执行的 AI 步。/ No playable AI move.",
+      stats: { constraints: constraints.length, frontier: unknownKeys.size }
+    };
+  }
+
+  window.MinesweeperSolver = Object.freeze({ solve });
+})();
+</script>
+<script>
+(function () {
+  "use strict";
+
+  const { Minesweeper } = window.MinesweeperGame;
+  const { solve } = window.MinesweeperSolver;
+
+  const elements = {
+    board: document.querySelector("#board"),
+    difficulty: document.querySelector("#difficulty"),
+    restart: document.querySelector("#restart"),
+    flagMode: document.querySelector("#flag-mode"),
+    aiHint: document.querySelector("#ai-hint"),
+    aiStep: document.querySelector("#ai-step"),
+    aiAuto: document.querySelector("#ai-auto"),
+    minesLeft: document.querySelector("#mines-left"),
+    time: document.querySelector("#time"),
+    status: document.querySelector("#status")
+  };
+
+  let game;
+  let seconds;
+  let timerId;
+  let flagMode;
+  let aiTimerId;
+  let aiRunning;
+  let aiMessage;
+  let aiOverlay;
+
+  function startGame() {
+    stopTimer();
+    stopAi();
+    game = new Minesweeper(elements.difficulty.value);
+    seconds = 0;
+    flagMode = false;
+    aiMessage = "";
+    aiOverlay = new Map();
+
+    elements.time.value = 0;
+    elements.flagMode.setAttribute("aria-pressed", "false");
+    elements.board.style.setProperty("--columns", game.cols);
+
+    buildBoard();
+    render();
+  }
+
+  function buildBoard() {
+    const fragment = document.createDocumentFragment();
+
+    game.board.flat().forEach((cell) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "cell";
+      button.dataset.row = cell.row;
+      button.dataset.col = cell.col;
+      button.setAttribute("role", "gridcell");
+      fragment.append(button);
+    });
+
+    elements.board.replaceChildren(fragment);
+  }
+
+  function render() {
+    elements.minesLeft.value = game.minesLeft;
+    elements.status.textContent = getStatusMessage();
+
+    elements.board.querySelectorAll(".cell").forEach((button) => {
+      const cell = game.getCell(
+        Number(button.dataset.row),
+        Number(button.dataset.col)
+      );
+      renderCell(button, cell);
+    });
+  }
+
+  function renderCell(button, cell) {
+    button.className = "cell";
+    button.textContent = "";
+    button.title = "";
+
+    if (cell.isRevealed) {
+      button.classList.add("revealed");
+
+      if (cell.isMine) {
+        button.textContent = "✹";
+        button.classList.add("mine");
+        button.setAttribute("aria-label", "地雷 / Mine");
+      } else if (cell.nearbyMines > 0) {
+        button.textContent = cell.nearbyMines;
+        button.classList.add(`n${cell.nearbyMines}`);
+        button.setAttribute("aria-label", `附近有 ${cell.nearbyMines} 个雷 / ${cell.nearbyMines} adjacent mines`);
+      } else {
+        button.setAttribute("aria-label", "空白格 / Empty cell");
+      }
+    } else if (cell.isFlagged) {
+      button.textContent = "⚑";
+      button.setAttribute("aria-label", "已插旗 / Flagged");
+    } else {
+      button.setAttribute("aria-label", `第 ${cell.row + 1} 行，第 ${cell.col + 1} 列 / Row ${cell.row + 1}, column ${cell.col + 1}`);
+    }
+
+    const overlay = aiOverlay.get(getPositionKey(cell.row, cell.col));
+    if (overlay && !cell.isRevealed && !cell.isFlagged) {
+      button.classList.add(overlay.className);
+      button.title = overlay.title;
+    }
+  }
+
+  function getStatusMessage() {
+    const messages = {
+      ready: "点击任意格开始。/ Click any cell to start.",
+      playing: "游戏进行中。/ Playing.",
+      won: `胜利！用时 ${seconds} 秒。/ You won in ${seconds} seconds.`,
+      lost: "踩到雷了。点击“重新开始 / Restart”再试一次。/ Mine hit. Restart to try again."
+    };
+    return aiMessage ? `${messages[game.state]} ${aiMessage}` : messages[game.state];
+  }
+
+  function startTimer() {
+    timerId = setInterval(() => {
+      seconds++;
+      elements.time.value = seconds;
+    }, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(timerId);
+    timerId = null;
+  }
+
+  function stopAi() {
+    clearInterval(aiTimerId);
+    aiTimerId = null;
+    aiRunning = false;
+    if (elements.aiAuto) elements.aiAuto.setAttribute("aria-pressed", "false");
+  }
+
+  function finishTurn(previousState) {
+    if (previousState === "ready" && game.state === "playing") startTimer();
+    if (game.state === "won" || game.state === "lost") {
+      stopTimer();
+      stopAi();
+    }
+    render();
+  }
+
+  function getPositionKey(row, col) {
+    return `${row},${col}`;
+  }
+
+  function setAiOverlay(result) {
+    aiOverlay.clear();
+
+    result.safeMoves.forEach((move) => {
+      aiOverlay.set(getPositionKey(move.row, move.col), {
+        className: "ai-safe",
+        title: "AI判断：确定安全 / AI: certainly safe"
+      });
+    });
+
+    result.flagMoves.forEach((move) => {
+      aiOverlay.set(getPositionKey(move.row, move.col), {
+        className: "ai-flag",
+        title: "AI判断：确定是雷 / AI: certainly a mine"
+      });
+    });
+
+    if (result.safeMoves.length === 0 && result.flagMoves.length === 0 && result.bestMove) {
+      aiOverlay.set(getPositionKey(result.bestMove.row, result.bestMove.col), {
+        className: "ai-best",
+        title: `AI建议：雷率约 ${formatProbability(result.bestMove.mineProbability)} / AI: mine risk about ${formatProbability(result.bestMove.mineProbability)}`
+      });
+    }
+  }
+
+  function formatProbability(probability) {
+    return `${Math.round(probability * 1000) / 10}%`;
+  }
+
+  function showAiHint() {
+    const result = solve(game);
+    aiMessage = result.explanation;
+    setAiOverlay(result);
+    render();
+  }
+
+  function applyAiStep() {
+    if (game.state === "won" || game.state === "lost") {
+      stopAi();
+      return;
+    }
+
+    const result = solve(game);
+    aiMessage = result.explanation;
+    aiOverlay.clear();
+
+    const previousState = game.state;
+    result.flagMoves.forEach((move) => {
+      const cell = game.getCell(move.row, move.col);
+      if (cell && !cell.isFlagged && !cell.isRevealed) {
+        game.toggleFlag(move.row, move.col);
+      }
+    });
+
+    const revealMove = result.safeMoves[0] ?? (
+      result.bestMove?.type === "reveal" ? result.bestMove : null
+    );
+
+    if (revealMove) {
+      game.reveal(revealMove.row, revealMove.col);
+    } else if (result.flagMoves.length === 0) {
+      aiMessage = "AI没有找到可执行的下一步。/ AI found no playable move.";
+      stopAi();
+    }
+
+    finishTurn(previousState);
+  }
+
+  function toggleAiAuto() {
+    if (aiRunning) {
+      stopAi();
+      aiMessage = "AI接管已暂停。/ AI auto-play paused.";
+      render();
+      return;
+    }
+
+    aiRunning = true;
+    elements.aiAuto.setAttribute("aria-pressed", "true");
+    applyAiStep();
+    aiTimerId = setInterval(applyAiStep, 260);
+  }
+
+  function getCellFromEvent(event) {
+    const button = event.target.closest(".cell");
+    if (!button) return null;
+    return {
+      row: Number(button.dataset.row),
+      col: Number(button.dataset.col)
+    };
+  }
+
+  elements.board.addEventListener("click", (event) => {
+    const position = getCellFromEvent(event);
+    if (!position) return;
+
+    stopAi();
+    aiMessage = "";
+    aiOverlay.clear();
+    const previousState = game.state;
+    if (flagMode) {
+      game.toggleFlag(position.row, position.col);
+    } else {
+      game.reveal(position.row, position.col);
+    }
+    finishTurn(previousState);
+  });
+
+  elements.board.addEventListener("contextmenu", (event) => {
+    const position = getCellFromEvent(event);
+    if (!position) return;
+
+    event.preventDefault();
+    stopAi();
+    aiMessage = "";
+    aiOverlay.clear();
+    game.toggleFlag(position.row, position.col);
+    render();
+  });
+
+  elements.flagMode.addEventListener("click", () => {
+    flagMode = !flagMode;
+    elements.flagMode.setAttribute("aria-pressed", String(flagMode));
+  });
+
+  elements.aiHint.addEventListener("click", showAiHint);
+  elements.aiStep.addEventListener("click", applyAiStep);
+  elements.aiAuto.addEventListener("click", toggleAiAuto);
+  elements.restart.addEventListener("click", startGame);
+  elements.difficulty.addEventListener("change", startGame);
+
+  startGame();
+})();
+</script>
+</body>
+</html>
